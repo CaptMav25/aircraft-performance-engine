@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Your own saved profiles (personal data, recreated by the program)
+aircraft_profiles.json
+airports.json
+
+# Charts the program writes when you run it.
+# The two used in README.md are kept.
+*.png
+!bfl_Challenger_3500.png
+!sensitivity_Challenger_3500.png
+!flowcharts/*.png
+!report/figures/*.png
+
+# LaTeX build files (the PDF is kept)
+report/*.aux
+report/*.log
+report/*.toc
+report/*.lof
+report/*.lot
+report/*.out
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

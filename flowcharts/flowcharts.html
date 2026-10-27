@@ -1,0 +1,651 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}</style></head><body>
+<title>Performance Engine Flowcharts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: toolbar band on top, full-height drafting canvas, edit panel docked right (bottom sheet on phones). */
+:root {
+  --bg: #eef1f5;
+  --paper: #f8f9fb;
+  --grid: #dfe4ec;
+  --grid-major: #cbd3df;
+  --ink: #1b2a41;
+  --ink-2: #4a5a72;
+  --ink-3: #7b889c;
+  --navy: #1f3a5f;
+  --accent: #2b6cb0;
+  --line: #3d4f6b;
+  --hi: #d9822b;
+  --panel: #ffffff;
+  --border: #ccd4e0;
+  --proc: #ffffff;
+  --sub: #eef3fa;
+  --dec: #fdf3e1;
+  --dec-b: #c08a2e;
+  --io: #e6f4f1;
+  --io-b: #2f8475;
+  --term: #1f3a5f;
+  --term-fg: #ffffff;
+  --store: #eceff4;
+  --err: #fdecec;
+  --err-b: #c0392b;
+  --font: "Roboto", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Roboto Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121821; --paper: #161d28; --grid: #1e2734; --grid-major: #283445;
+    --ink: #e4eaf3; --ink-2: #aab6c8; --ink-3: #7d8aa0; --navy: #8fb3e3; --accent: #6aa5e8;
+    --line: #9fb0c8; --hi: #f0a050; --panel: #1a2230; --border: #2e3a4d;
+    --proc: #1d2633; --sub: #1f2b3c; --dec: #33291a; --dec-b: #d8a24a; --io: #17302c; --io-b: #4fb3a1;
+    --term: #8fb3e3; --term-fg: #10161f; --store: #222a36; --err: #3a1f1f; --err-b: #e2685c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121821; --paper: #161d28; --grid: #1e2734; --grid-major: #283445;
+  --ink: #e4eaf3; --ink-2: #aab6c8; --ink-3: #7d8aa0; --navy: #8fb3e3; --accent: #6aa5e8;
+  --line: #9fb0c8; --hi: #f0a050; --panel: #1a2230; --border: #2e3a4d;
+  --proc: #1d2633; --sub: #1f2b3c; --dec: #33291a; --dec-b: #d8a24a; --io: #17302c; --io-b: #4fb3a1;
+  --term: #8fb3e3; --term-fg: #10161f; --store: #222a36; --err: #3a1f1f; --err-b: #e2685c;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; display: flex; flex-direction: column; overflow: hidden; }
+header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--border); background: var(--panel);
+}
+h1 { font-size: 16px; font-weight: 700; margin: 0; color: var(--navy); letter-spacing: .01em; text-wrap: balance; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab {
+  font: 500 13px var(--font); color: var(--ink-2); background: transparent; border: 1px solid transparent;
+  padding: 6px 12px; border-radius: 6px; cursor: pointer;
+}
+.tab[aria-selected="true"] { color: var(--navy); border-color: var(--border); background: var(--bg); }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; align-items: center; }
+button.tool, select.tool {
+  font: 500 12.5px var(--font); color: var(--ink); background: var(--panel); border: 1px solid var(--border);
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+}
+button.tool:hover { border-color: var(--accent); }
+button.tool.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--hi); outline-offset: 1px; }
+.hint { font-size: 12px; color: var(--ink-3); }
+main { flex: 1; display: flex; min-height: 0; position: relative; }
+#stage { flex: 1; min-width: 0; position: relative; }
+svg#canvas { width: 100%; height: 100%; display: block; background: var(--paper); touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+svg#canvas.panning { cursor: grabbing; }
+svg#canvas.connecting { cursor: crosshair; }
+.node { cursor: move; }
+.node .shape { stroke-width: 1.4; }
+.node.sel .shape { stroke: var(--hi) !important; stroke-width: 2.6; }
+.node.dim { opacity: .35; }
+.n-title { font: 500 12.5px/1.25 var(--font); color: var(--ink); text-align: center; }
+.n-code { font: 400 10.5px/1.3 var(--mono); color: var(--ink-2); text-align: center; margin-top: 3px; overflow-wrap: anywhere; }
+.term .n-title { color: var(--term-fg); font-weight: 700; }
+.term .n-code { color: var(--term-fg); opacity: .8; }
+.fo { pointer-events: none; }
+.fo > div { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 4px 12px; box-sizing: border-box; }
+.edge path.vis { fill: none; stroke: var(--line); stroke-width: 1.4; }
+.edge path.hit { fill: none; stroke: transparent; stroke-width: 12; cursor: pointer; }
+.edge.dashed path.vis { stroke-dasharray: 5 4; }
+.edge.error path.vis { stroke: var(--err-b); stroke-dasharray: 5 4; }
+.edge.hi path.vis { stroke: var(--hi); stroke-width: 2.2; }
+.edge.dim { opacity: .18; }
+.edge text { font: 500 11px var(--font); fill: var(--ink-2); }
+.edge rect.lbl { fill: var(--paper); }
+.zoom { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.zoom button { width: 34px; height: 34px; padding: 0; font-size: 16px; }
+.legend {
+  position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: 12px; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; font-size: 11.5px; color: var(--ink-2);
+  max-width: calc(100% - 90px);
+}
+.legend svg { display: block; }
+.legend .ttl { grid-column: 1 / -1; font-weight: 700; color: var(--ink); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.legend.collapsed > :not(.ttl) { display: none; }
+.legend .ttl button { border: 0; background: none; color: var(--ink-3); font: inherit; cursor: pointer; padding: 0 0 0 6px; }
+aside {
+  width: 300px; flex: none; border-left: 1px solid var(--border); background: var(--panel); overflow-y: auto;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;
+}
+aside h2 { font-size: 13px; margin: 0; color: var(--navy); letter-spacing: .06em; text-transform: uppercase; }
+aside p { margin: 0; color: var(--ink-2); line-height: 1.5; font-size: 13px; }
+aside label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); font-weight: 500; }
+aside input, aside textarea, aside select {
+  font: 13px var(--font); color: var(--ink); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 8px;
+}
+aside textarea { font-family: var(--mono); font-size: 12px; resize: vertical; min-height: 44px; }
+aside .row { display: flex; gap: 6px; flex-wrap: wrap; }
+aside .danger { color: var(--err-b); border-color: var(--err-b); }
+aside dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12px; }
+aside dt { font-family: var(--mono); color: var(--ink); }
+aside dd { margin: 0; color: var(--ink-2); }
+.toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 6px 12px; border-radius: 6px; font-size: 12.5px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+@media (max-width: 760px) {
+  main { flex-direction: column; }
+  aside { width: auto; border-left: 0; border-top: 1px solid var(--border); max-height: 38vh; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .tools { margin-left: 0; }
+  .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+
+<header>
+  <h1>Aircraft Performance Engine: Flowcharts</h1>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-calculation" data-chart="calculation">Calculation Flow</button>
+    <button class="tab" role="tab" id="tab-program" data-chart="program">Program Flow</button>
+  </div>
+  <div class="tools">
+    <select class="tool" id="newShape" aria-label="Shape for new box">
+      <option value="process">Process</option>
+      <option value="sub">Function Call</option>
+      <option value="decision">Decision</option>
+      <option value="io">Input / Output</option>
+      <option value="store">Saved File</option>
+      <option value="term">Start / End</option>
+      <option value="error">Error</option>
+    </select>
+    <button class="tool" id="addBtn">Add Box</button>
+    <button class="tool" id="connectBtn">Connect</button>
+    <button class="tool" id="copyBtn">Copy JSON</button>
+    <button class="tool" id="resetBtn">Reset Layout</button>
+  </div>
+</header>
+
+<main>
+  <div id="stage">
+    <svg id="canvas" aria-label="Flowchart canvas">
+      <defs>
+        <pattern id="gridMinor" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0H0V10" fill="none" stroke="var(--grid)" stroke-width=".6"/></pattern>
+        <pattern id="gridMajor" width="50" height="50" patternUnits="userSpaceOnUse"><rect width="50" height="50" fill="url(#gridMinor)"/><path d="M50 0H0V50" fill="none" stroke="var(--grid-major)" stroke-width=".8"/></pattern>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="var(--line)"/></marker>
+        <marker id="arrHi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="var(--hi)"/></marker>
+        <marker id="arrErr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="var(--err-b)"/></marker>
+      </defs>
+      <rect id="gridBg" x="-5000" y="-5000" width="12000" height="12000" fill="url(#gridMajor)"/>
+      <g id="edges"></g>
+      <g id="nodes"></g>
+    </svg>
+    <div class="legend" id="legend">
+      <div class="ttl">Symbols<button id="legendToggle" aria-label="Hide symbols">Hide</button></div>
+      <svg width="36" height="18"><rect x="1" y="1" width="34" height="16" rx="8" fill="var(--term)"/></svg><span>Start / End</span>
+      <svg width="36" height="18"><rect x="1" y="1" width="34" height="16" fill="var(--proc)" stroke="var(--line)"/></svg><span>Process step</span>
+      <svg width="36" height="18"><rect x="1" y="1" width="34" height="16" fill="var(--sub)" stroke="var(--line)"/><path d="M6 1V17M30 1V17" stroke="var(--line)"/></svg><span>Function call (detail in another file)</span>
+      <svg width="36" height="18"><path d="M18 1L35 9L18 17L1 9Z" fill="var(--dec)" stroke="var(--dec-b)"/></svg><span>Decision</span>
+      <svg width="36" height="18"><path d="M7 1H35L29 17H1Z" fill="var(--io)" stroke="var(--io-b)"/></svg><span>Input / output</span>
+      <svg width="36" height="18"><path d="M2 4Q18 0 34 4V14Q18 18 2 14Z" fill="var(--store)" stroke="var(--line)"/><path d="M2 4Q18 8 34 4" fill="none" stroke="var(--line)"/></svg><span>Saved file (JSON)</span>
+      <svg width="36" height="18"><rect x="1" y="1" width="34" height="16" fill="var(--err)" stroke="var(--err-b)" stroke-dasharray="3 2"/></svg><span>Error raised</span>
+    </div>
+    <div class="zoom">
+      <button class="tool" id="zoomIn" aria-label="Zoom in">+</button>
+      <button class="tool" id="zoomOut" aria-label="Zoom out">−</button>
+      <button class="tool" id="fitBtn" aria-label="Fit chart to screen" style="font-size:11px">Fit</button>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+  <aside id="panel" aria-live="polite"></aside>
+</main>
+
+<script>
+(() => {
+"use strict";
+const W = 230, H = 76, DW = 200, DH = 108;
+
+// ---------------------------------------------------------------- chart data
+const CHARTS = {
+calculation: {
+  title: "Calculation Flow",
+  about: "How one runway check is computed, from inputs to the OK / limited verdict. Grey code text names the Python function that does each step.",
+  nodes: [
+    {id:"start", shape:"term", title:"Start Runway Analysis", code:"analyze_runway()", x:450, y:40},
+    {id:"acft", shape:"io", title:"Aircraft Profile", code:"aircraft.py · profiles.py", x:150, y:150},
+    {id:"rwy", shape:"io", title:"Airport and Runway", code:"airports.py", x:450, y:150},
+    {id:"day", shape:"io", title:"Day Conditions: OAT, Wind, Weights, Wet / Dry", code:"ask()", x:750, y:150},
+    {id:"atm", shape:"process", title:"International Standard Atmosphere (ISA)", code:"isa_dev_from_oat() · isa() · sigma()", x:300, y:270},
+    {id:"wind", shape:"process", title:"Headwind and Crosswind, Factored 50% / 150%", code:"wind_components() · factored_headwind()", x:600, y:270},
+    {id:"cond", shape:"process", title:"Build Runway Conditions", code:"make_conditions()", x:450, y:380},
+    {id:"spd", shape:"process", title:"Takeoff Speeds: VS1, VR, V2", code:"stall_speed() · takeoff_speeds()", x:450, y:490},
+    {id:"roll", shape:"process", title:"Ground Roll to VR, Integrated with Runge-Kutta (RK45)", code:"accelerate() · solve_ivp", x:450, y:600},
+    {id:"forces", shape:"sub", title:"Forces at Each Step: Thrust, Lift, Drag, Friction", code:"thrust() · lift() · drag()", x:790, y:600},
+    {id:"rot", shape:"process", title:"Rotation Distance", code:"rotation_distance()", x:450, y:710},
+    {id:"err", shape:"error", title:"Not Enough Thrust or Climb", code:"InsufficientThrustError · ClimbPerformanceError", x:790, y:765},
+    {id:"climb", shape:"process", title:"Transition Arc and Climb to Screen Height", code:"climb_to_screen()", x:450, y:820},
+    {id:"tod", shape:"process", title:"All-Engines Takeoff Distance (TOD)", code:"takeoff()", x:450, y:930},
+    {id:"multi", shape:"decision", title:"More Than One Engine?", code:"n_engines > 1", x:450, y:1055},
+    {id:"bfl", shape:"sub", title:"Balanced Field Length (BFL), Engine Failure at V1", code:"balanced_field() · brentq", x:790, y:1175},
+    {id:"toflj", shape:"process", title:"Takeoff Field Length (TOFL) = max(BFL, 1.15 × TOD)", code:"Part 25 · §25.113", x:790, y:1290},
+    {id:"toflp", shape:"process", title:"Takeoff Field Length (TOFL) = TOD", code:"Part 23", x:110, y:1230},
+    {id:"land", shape:"sub", title:"Landing Distance (LD) and Landing Distance Required (LDR)", code:"landing() · decelerate()", x:450, y:1400},
+    {id:"check", shape:"process", title:"Compare With Declared Distances: TORA, TODA, ASDA, LDA", code:"analyze_runway()", x:450, y:1510},
+    {id:"ok", shape:"decision", title:"All Margins Positive?", code:"margin ≥ 0", x:450, y:1635},
+    {id:"pass", shape:"term", title:"Takeoff and Landing OK", code:"", x:790, y:1760},
+    {id:"fail", shape:"term", title:"Runway Limited", code:"", x:110, y:1760}
+  ],
+  edges: [
+    {from:"start", to:"acft"}, {from:"start", to:"rwy"}, {from:"start", to:"day"},
+    {from:"acft", to:"cond", fromSide:"bottom", toSide:"left"}, {from:"rwy", to:"atm"}, {from:"rwy", to:"wind"},
+    {from:"day", to:"atm"}, {from:"day", to:"wind"},
+    {from:"atm", to:"cond"}, {from:"wind", to:"cond"},
+    {from:"cond", to:"spd"}, {from:"spd", to:"roll"},
+    {from:"roll", to:"forces", style:"dashed", fromSide:"right", toSide:"left", label:"calls"},
+    {from:"roll", to:"rot"}, {from:"rot", to:"climb"}, {from:"climb", to:"tod"}, {from:"tod", to:"multi"},
+    {from:"forces", to:"err", style:"error", fromSide:"bottom", toSide:"top", label:"raises"},
+    {from:"climb", to:"err", style:"error", fromSide:"right", toSide:"left", label:"raises"},
+    {from:"multi", to:"bfl", label:"Yes", fromSide:"right", toSide:"top"},
+    {from:"multi", to:"toflp", label:"No", fromSide:"left", toSide:"top"},
+    {from:"bfl", to:"toflj"}, {from:"toflj", to:"land", fromSide:"bottom", toSide:"right"},
+    {from:"toflp", to:"land", fromSide:"bottom", toSide:"left"},
+    {from:"land", to:"check"}, {from:"check", to:"ok"},
+    {from:"ok", to:"pass", label:"Yes", fromSide:"right", toSide:"top"},
+    {from:"ok", to:"fail", label:"No", fromSide:"left", toSide:"top"}
+  ],
+  glossary: [["OAT","Outside Air Temperature"],["VS1","Stall speed, takeoff flaps"],["VR","Rotation speed"],["V1","Decision speed"],["V2","Takeoff safety speed"],["TORA","Takeoff Run Available"],["TODA","Takeoff Distance Available"],["ASDA","Accelerate-Stop Distance Available"],["LDA","Landing Distance Available"]]
+},
+program: {
+  title: "Program Flow",
+  about: "What happens when you run main.py: the menu loop, which function each option calls, and where errors and saved files go.",
+  nodes: [
+    {id:"start", shape:"term", title:"Run main.py", code:"python3 main.py", x:975, y:40},
+    {id:"load", shape:"process", title:"Load Saved Profiles", code:"load_profiles() · load_airports()", x:975, y:150},
+    {id:"json", shape:"store", title:"Saved Profiles", code:"aircraft_profiles.json · airports.json", x:1370, y:150},
+    {id:"def", shape:"process", title:"Select Defaults: Challenger 3500, CYYZ Runway 05", code:"CL3500 · CYYZ", x:975, y:260},
+    {id:"menu", shape:"io", title:"Main Menu: Choose 1–8", code:"input()", x:975, y:370},
+    {id:"choice", shape:"decision", title:"Which Option?", code:"choice", x:975, y:500},
+    {id:"o1", shape:"sub", title:"1 · Aircraft Profiles", code:"profile_menu()", x:100, y:660},
+    {id:"o2", shape:"sub", title:"2 · Airports and Runways", code:"airport_menu()", x:350, y:660},
+    {id:"o3", shape:"sub", title:"3 · Runway Analysis", code:"run_runway_analysis_interactive()", x:600, y:660},
+    {id:"o4", shape:"sub", title:"4 · Balanced Field Length (BFL)", code:"run_bfl_interactive()", x:850, y:660},
+    {id:"o5", shape:"sub", title:"5 · Takeoff, All Engines", code:"run_takeoff_interactive()", x:1100, y:660},
+    {id:"o6", shape:"sub", title:"6 · Landing", code:"run_landing_interactive()", x:1350, y:660},
+    {id:"o7", shape:"sub", title:"7 · Sensitivity Plots", code:"run_sweeps() · plot_sensitivity()", x:1600, y:660},
+    {id:"o8", shape:"term", title:"8 · Quit", code:"break", x:1850, y:660},
+    {id:"crud", shape:"io", title:"Create, View, Select or Delete", code:"create_profile() · choose_profile()", x:225, y:790},
+    {id:"save", shape:"store", title:"Save to JSON", code:"save_profiles() · save_airports()", x:225, y:910},
+    {id:"ask", shape:"io", title:"Prompt for Inputs", code:"ask()", x:1100, y:790},
+    {id:"run", shape:"process", title:"Run the Calculation", code:"takeoff() · balanced_field() · landing()", x:1100, y:900},
+    {id:"perr", shape:"decision", title:"Performance Error Raised?", code:"try / except PerformanceError", x:1100, y:1030},
+    {id:"show", shape:"error", title:"Show Error Message", code:"print(err)", x:840, y:1160},
+    {id:"out", shape:"io", title:"Print Results and Save Charts (PNG)", code:"plot_bfl() · plot_sensitivity()", x:1360, y:1160}
+  ],
+  edges: [
+    {from:"start", to:"load"}, {from:"json", to:"load", style:"dashed", fromSide:"left", toSide:"right", label:"reads"},
+    {from:"load", to:"def"}, {from:"def", to:"menu"}, {from:"menu", to:"choice"},
+    {from:"choice", to:"o1"}, {from:"choice", to:"o2"}, {from:"choice", to:"o3"}, {from:"choice", to:"o4"},
+    {from:"choice", to:"o5"}, {from:"choice", to:"o6"}, {from:"choice", to:"o7"}, {from:"choice", to:"o8"},
+    {from:"o1", to:"crud"}, {from:"o2", to:"crud"}, {from:"crud", to:"save"},
+    {from:"o3", to:"ask"}, {from:"o4", to:"ask"}, {from:"o5", to:"ask"}, {from:"o6", to:"ask"}, {from:"o7", to:"ask"},
+    {from:"ask", to:"run"}, {from:"run", to:"perr"},
+    {from:"perr", to:"show", label:"Yes", fromSide:"left", toSide:"top"},
+    {from:"perr", to:"out", label:"No", fromSide:"right", toSide:"top"},
+    {from:"save", to:"menu", via:"left", label:"back to menu"},
+    {from:"show", to:"menu", via:"left"},
+    {from:"out", to:"menu", via:"right", label:"back to menu"}
+  ],
+  glossary: [["BFL","Balanced Field Length"],["PNG","Image file for charts"],["JSON","Text file format for saved profiles"],["CYYZ","Toronto Pearson"]]
+}
+};
+
+// ---------------------------------------------------------------- state
+const STORE = "perf-flowcharts-v1-";
+const svg = document.getElementById("canvas");
+const gNodes = document.getElementById("nodes");
+const gEdges = document.getElementById("edges");
+const panel = document.getElementById("panel");
+let chartKey = "calculation";
+let data = null;            // working copy {nodes, edges}
+let view = {x:0, y:0, w:1000, h:800};
+let selected = null;        // {type:"node"|"edge", id|index}
+let connectFrom = null, connecting = false;
+
+const clone = o => JSON.parse(JSON.stringify(o));
+function load(key) {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORE + key) || "null"); } catch (e) { saved = null; }
+  return saved && saved.nodes ? saved : clone({nodes: CHARTS[key].nodes, edges: CHARTS[key].edges});
+}
+function save() { try { localStorage.setItem(STORE + chartKey, JSON.stringify(data)); } catch (e) {} }
+
+// ---------------------------------------------------------------- geometry
+const size = n => n.shape === "decision" ? [DW, DH] : [W, H];
+function anchor(n, side) {
+  const [w, h] = size(n);
+  return {top:[n.x, n.y - h/2], bottom:[n.x, n.y + h/2], left:[n.x - w/2, n.y], right:[n.x + w/2, n.y]}[side];
+}
+function autoSides(a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  if (Math.abs(dy) > 40) return dy > 0 ? ["bottom", "top"] : ["top", "bottom"];
+  return dx > 0 ? ["right", "left"] : ["left", "right"];
+}
+function edgePath(e, a, b) {
+  if (e.via) {
+    const xs = data.nodes.map(n => e.via === "left" ? n.x - size(n)[0]/2 : n.x + size(n)[0]/2);
+    const lane = e.via === "left" ? Math.min(...xs) - 50 : Math.max(...xs) + 50;
+    const s = anchor(a, e.via), t = anchor(b, e.via);
+    return `M${s[0]},${s[1]} H${lane} V${t[1]} H${t[0]}`;
+  }
+  let [fs, ts] = autoSides(a, b);
+  if (e.fromSide) fs = e.fromSide;
+  if (e.toSide) ts = e.toSide;
+  const s = anchor(a, fs), t = anchor(b, ts);
+  if (e.curve) {
+    const k = Math.max(40, Math.abs(t[1] - s[1]) * 0.45);
+    return `M${s[0]},${s[1]} C${s[0]},${s[1] + k} ${t[0]},${t[1] - k} ${t[0]},${t[1]}`;
+  }
+  const vert = x => x === "top" || x === "bottom";
+  if (vert(fs) && vert(ts)) {
+    if (Math.abs(s[0] - t[0]) < 1) return `M${s[0]},${s[1]} V${t[1]}`;
+    const my = (s[1] + t[1]) / 2;
+    return `M${s[0]},${s[1]} V${my} H${t[0]} V${t[1]}`;
+  }
+  if (!vert(fs) && !vert(ts)) {
+    if (Math.abs(s[1] - t[1]) < 1) return `M${s[0]},${s[1]} H${t[0]}`;
+    const mx = (s[0] + t[0]) / 2;
+    return `M${s[0]},${s[1]} H${mx} V${t[1]} H${t[0]}`;
+  }
+  if (!vert(fs)) return `M${s[0]},${s[1]} H${t[0]} V${t[1]}`;
+  return `M${s[0]},${s[1]} V${t[1]} H${t[0]}`;
+}
+function shapeSvg(n) {
+  const [w, h] = size(n), x = -w/2, y = -h/2;
+  switch (n.shape) {
+    case "term": return `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="${h/2}" fill="var(--term)" stroke="var(--term)"/>`;
+    case "sub": return `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" fill="var(--sub)" stroke="var(--line)"/><path d="M${x+10},${y}V${y+h}M${-x-10},${y}V${y+h}" stroke="var(--line)" stroke-width="1.2"/>`;
+    case "decision": return `<path class="shape" d="M0,${y}L${-x},0L0,${-y}L${x},0Z" fill="var(--dec)" stroke="var(--dec-b)"/>`;
+    case "io": return `<path class="shape" d="M${x+14},${y}H${-x}L${-x-14},${-y}H${x}Z" fill="var(--io)" stroke="var(--io-b)"/>`;
+    case "store": return `<path class="shape" d="M${x},${y+8}Q0,${y-6} ${-x},${y+8}V${-y-8}Q0,${-y+6} ${x},${-y-8}Z" fill="var(--store)" stroke="var(--line)"/><path d="M${x},${y+8}Q0,${y+22} ${-x},${y+8}" fill="none" stroke="var(--line)" stroke-width="1.2"/>`;
+    case "error": return `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="var(--err)" stroke="var(--err-b)" stroke-dasharray="5 3"/>`;
+    default: return `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="var(--proc)" stroke="var(--line)"/>`;
+  }
+}
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------------------------------------------------------------- render
+function render() {
+  const NS = "http://www.w3.org/2000/svg";
+  const byId = Object.fromEntries(data.nodes.map(n => [n.id, n]));
+  const selNode = selected && selected.type === "node" ? selected.id : null;
+  const linked = new Set();
+  if (selNode) data.edges.forEach(e => { if (e.from === selNode || e.to === selNode) { linked.add(e.from); linked.add(e.to); } });
+
+  gEdges.innerHTML = "";
+  data.edges.forEach((e, i) => {
+    const a = byId[e.from], b = byId[e.to];
+    if (!a || !b) return;
+    const g = document.createElementNS(NS, "g");
+    const isHi = (selNode && (e.from === selNode || e.to === selNode)) || (selected && selected.type === "edge" && selected.index === i);
+    g.setAttribute("class", "edge" + (e.style === "dashed" ? " dashed" : "") + (e.style === "error" ? " error" : "") + (isHi ? " hi" : "") + (selNode && !isHi ? " dim" : ""));
+    const d = edgePath(e, a, b);
+    const marker = isHi ? "arrHi" : e.style === "error" ? "arrErr" : "arr";
+    g.innerHTML = `<path class="vis" d="${d}" marker-end="url(#${marker})"/><path class="hit" d="${d}"/>`;
+    g.dataset.index = i;
+    gEdges.appendChild(g);
+    if (e.label) {
+      const p = g.querySelector("path.vis"), L = p.getTotalLength();
+      const pt = p.getPointAtLength(e.via ? Math.min(L / 2, 160) : Math.min(L * 0.5, Math.max(26, L * 0.25)));
+      const t = document.createElementNS(NS, "text");
+      t.setAttribute("x", pt.x); t.setAttribute("y", pt.y + 4); t.setAttribute("text-anchor", "middle");
+      t.textContent = e.label;
+      g.appendChild(t);
+      const bb = t.getBBox();
+      const r = document.createElementNS(NS, "rect");
+      r.setAttribute("class", "lbl");
+      r.setAttribute("x", bb.x - 3); r.setAttribute("y", bb.y - 1); r.setAttribute("width", bb.width + 6); r.setAttribute("height", bb.height + 2);
+      g.insertBefore(r, t);
+    }
+  });
+
+  gNodes.innerHTML = "";
+  data.nodes.forEach(n => {
+    const [w, h] = size(n);
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "node " + n.shape + (selNode === n.id ? " sel" : "") + (selNode && !linked.has(n.id) && selNode !== n.id ? " dim" : ""));
+    g.setAttribute("transform", `translate(${n.x},${n.y})`);
+    g.dataset.id = n.id;
+    const inset = n.shape === "decision" ? 34 : n.shape === "sub" ? 10 : n.shape === "io" ? 10 : 0;
+    const fh = n.shape === "decision" ? h - 24 : h;
+    g.innerHTML = shapeSvg(n) +
+      `<foreignObject class="fo" x="${-w/2 + inset}" y="${-fh/2}" width="${w - 2*inset}" height="${fh}"><div xmlns="http://www.w3.org/1999/xhtml"><div class="n-title">${esc(n.title)}</div>${n.code ? `<div class="n-code">${esc(n.code)}</div>` : ""}</div></foreignObject>`;
+    gNodes.appendChild(g);
+  });
+  setView();
+}
+function setView() { svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`); }
+function fit() {
+  if (!data.nodes.length) return;
+  const xs = [], ys = [];
+  data.nodes.forEach(n => { const [w, h] = size(n); xs.push(n.x - w/2, n.x + w/2); ys.push(n.y - h/2, n.y + h/2); });
+  const pad = 110, minX = Math.min(...xs) - pad, maxX = Math.max(...xs) + pad, minY = Math.min(...ys) - 30, maxY = Math.max(...ys) + 200;
+  const r = svg.getBoundingClientRect(), aspect = r.width / Math.max(r.height, 1);
+  let w = maxX - minX, h = maxY - minY;
+  if (w / h > aspect) h = w / aspect; else w = h * aspect;
+  view = {x: (minX + maxX) / 2 - w / 2, y: minY, w, h};
+  setView();
+}
+
+// ---------------------------------------------------------------- panel
+function renderPanel() {
+  const c = CHARTS[chartKey];
+  if (selected && selected.type === "node") {
+    const n = data.nodes.find(x => x.id === selected.id);
+    if (!n) { selected = null; return renderPanel(); }
+    const outs = data.edges.filter(e => e.from === n.id).map(e => data.nodes.find(x => x.id === e.to)?.title).filter(Boolean);
+    const ins = data.edges.filter(e => e.to === n.id).map(e => data.nodes.find(x => x.id === e.from)?.title).filter(Boolean);
+    panel.innerHTML = `
+      <h2>Edit Box</h2>
+      <label>Title<input id="f-title" value="${esc(n.title)}"></label>
+      <label>Function or note<textarea id="f-code" rows="2">${esc(n.code)}</textarea></label>
+      <label>Shape<select id="f-shape">${[["process","Process"],["sub","Function Call"],["decision","Decision"],["io","Input / Output"],["store","Saved File"],["term","Start / End"],["error","Error"]].map(([v,t]) => `<option value="${v}"${v===n.shape?" selected":""}>${t}</option>`).join("")}</select></label>
+      <div class="row"><button class="tool" id="f-connect">Connect From This Box</button><button class="tool danger" id="f-delete">Delete Box</button></div>
+      <p><b>Comes from:</b> ${ins.join(", ") || "—"}</p><p><b>Leads to:</b> ${outs.join(", ") || "—"}</p>`;
+    const upd = () => { n.title = document.getElementById("f-title").value; n.code = document.getElementById("f-code").value; n.shape = document.getElementById("f-shape").value; save(); render(); };
+    document.getElementById("f-title").addEventListener("input", upd);
+    document.getElementById("f-code").addEventListener("input", upd);
+    document.getElementById("f-shape").addEventListener("change", upd);
+    document.getElementById("f-connect").addEventListener("click", () => startConnect(n.id));
+    document.getElementById("f-delete").addEventListener("click", () => {
+      data.nodes = data.nodes.filter(x => x.id !== n.id);
+      data.edges = data.edges.filter(e => e.from !== n.id && e.to !== n.id);
+      selected = null; save(); render(); renderPanel(); toast("Box deleted");
+    });
+    return;
+  }
+  if (selected && selected.type === "edge") {
+    const e = data.edges[selected.index];
+    if (!e) { selected = null; return renderPanel(); }
+    const a = data.nodes.find(x => x.id === e.from), b = data.nodes.find(x => x.id === e.to);
+    panel.innerHTML = `
+      <h2>Edit Arrow</h2>
+      <p>${esc(a?.title)} → ${esc(b?.title)}</p>
+      <label>Label<input id="e-label" value="${esc(e.label || "")}" placeholder="e.g. Yes"></label>
+      <label>Line<select id="e-style"><option value="">Solid</option><option value="dashed"${e.style==="dashed"?" selected":""}>Dashed (calls / reads)</option><option value="error"${e.style==="error"?" selected":""}>Error path</option></select></label>
+      <div class="row"><button class="tool danger" id="e-delete">Delete Arrow</button></div>`;
+    document.getElementById("e-label").addEventListener("input", ev => { e.label = ev.target.value; save(); render(); });
+    document.getElementById("e-style").addEventListener("change", ev => { e.style = ev.target.value; save(); render(); });
+    document.getElementById("e-delete").addEventListener("click", () => { data.edges.splice(selected.index, 1); selected = null; save(); render(); renderPanel(); toast("Arrow deleted"); });
+    return;
+  }
+  panel.innerHTML = `
+    <h2>${esc(c.title)}</h2>
+    <p>${esc(c.about)}</p>
+    <p class="hint" style="display:block">Drag boxes to rearrange. Drag the background to pan, scroll or pinch to zoom. Click a box or arrow to edit it.</p>
+    ${c.glossary.length ? `<h2>Abbreviations</h2><dl>${c.glossary.map(([k,v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}
+    <p class="hint" style="display:block">Your changes are kept in this browser only. Use Copy JSON to keep a copy or send it back to Claude.</p>`;
+}
+
+// ---------------------------------------------------------------- interaction
+function toPt(ev) {
+  const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+let drag = null;
+const pointers = new Map();
+svg.addEventListener("pointerdown", ev => {
+  pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+  if (pointers.size === 2) { drag = {pinch: true, d0: pinchDist(), view0: {...view}}; return; }
+  const nodeEl = ev.target.closest(".node"), edgeEl = ev.target.closest(".edge");
+  const p = toPt(ev);
+  if (nodeEl) {
+    const n = data.nodes.find(x => x.id === nodeEl.dataset.id);
+    drag = {node: n, dx: p.x - n.x, dy: p.y - n.y, sx: ev.clientX, sy: ev.clientY, moved: false};
+  } else if (edgeEl) {
+    drag = {edge: +edgeEl.dataset.index, sx: ev.clientX, sy: ev.clientY, moved: false};
+  } else {
+    drag = {pan: true, sx: ev.clientX, sy: ev.clientY, view0: {...view}, moved: false};
+    svg.classList.add("panning");
+  }
+  svg.setPointerCapture(ev.pointerId);
+});
+function pinchDist() { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; }
+svg.addEventListener("pointermove", ev => {
+  if (!pointers.has(ev.pointerId)) return;
+  pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+  if (!drag) return;
+  if (drag.pinch && pointers.size === 2) {
+    const k = drag.d0 / pinchDist(), v = drag.view0;
+    view = {x: v.x + v.w * (1 - k) / 2, y: v.y + v.h * (1 - k) / 2, w: v.w * k, h: v.h * k}; setView(); return;
+  }
+  if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) > 3) drag.moved = true;
+  if (drag.node && drag.moved) {
+    const p = toPt(ev);
+    drag.node.x = Math.round((p.x - drag.dx) / 10) * 10;
+    drag.node.y = Math.round((p.y - drag.dy) / 10) * 10;
+    render();
+  } else if (drag.pan) {
+    const r = svg.getBoundingClientRect(), s = drag.view0.w / r.width;
+    view.x = drag.view0.x - (ev.clientX - drag.sx) * s;
+    view.y = drag.view0.y - (ev.clientY - drag.sy) * s;
+    setView();
+  }
+});
+function endPointer(ev) {
+  pointers.delete(ev.pointerId);
+  svg.classList.remove("panning");
+  if (!drag) return;
+  if (drag.pinch) { if (pointers.size === 0) drag = null; return; }
+  if (drag.node) {
+    if (drag.moved) save();
+    else if (connecting) finishConnect(drag.node.id);
+    else { selected = {type: "node", id: drag.node.id}; render(); renderPanel(); }
+  } else if (drag.edge !== undefined && !drag.moved) {
+    selected = {type: "edge", index: drag.edge}; render(); renderPanel();
+  } else if (drag.pan && !drag.moved) {
+    if (connecting) stopConnect();
+    if (selected) { selected = null; render(); renderPanel(); }
+  }
+  drag = null;
+}
+svg.addEventListener("pointerup", endPointer);
+svg.addEventListener("pointercancel", endPointer);
+svg.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const p = toPt(ev), k = Math.exp(ev.deltaY * 0.0015);
+  zoomAt(p.x, p.y, k);
+}, {passive: false});
+function zoomAt(px, py, k) {
+  const nw = Math.min(Math.max(view.w * k, 200), 8000), kk = nw / view.w;
+  view = {x: px - (px - view.x) * kk, y: py - (py - view.y) * kk, w: view.w * kk, h: view.h * kk};
+  setView();
+}
+const centre = () => [view.x + view.w / 2, view.y + view.h / 2];
+document.getElementById("zoomIn").addEventListener("click", () => zoomAt(...centre(), 0.8));
+document.getElementById("zoomOut").addEventListener("click", () => zoomAt(...centre(), 1.25));
+document.getElementById("fitBtn").addEventListener("click", fit);
+
+function startConnect(id) {
+  connecting = true; connectFrom = id || null;
+  svg.classList.add("connecting");
+  document.getElementById("connectBtn").classList.add("on");
+  toast(connectFrom ? "Click the box the arrow should point to" : "Click the box the arrow starts from");
+}
+function stopConnect() {
+  connecting = false; connectFrom = null;
+  svg.classList.remove("connecting");
+  document.getElementById("connectBtn").classList.remove("on");
+}
+function finishConnect(id) {
+  if (!connectFrom) { connectFrom = id; toast("Now click the box the arrow should point to"); return; }
+  if (id !== connectFrom) {
+    data.edges.push({from: connectFrom, to: id});
+    save(); selected = {type: "edge", index: data.edges.length - 1}; render(); renderPanel(); toast("Arrow added");
+  }
+  stopConnect();
+}
+document.getElementById("connectBtn").addEventListener("click", () => connecting ? stopConnect() : startConnect(null));
+
+document.getElementById("addBtn").addEventListener("click", () => {
+  const shape = document.getElementById("newShape").value;
+  const [cx, cy] = centre();
+  const n = {id: "n" + Date.now().toString(36), shape, title: shape === "decision" ? "New Decision?" : "New Step", code: "", x: Math.round(cx / 10) * 10, y: Math.round(cy / 10) * 10};
+  data.nodes.push(n); selected = {type: "node", id: n.id};
+  save(); render(); renderPanel();
+  const f = document.getElementById("f-title"); if (f) { f.focus(); f.select(); }
+});
+
+let resetArmed = null;
+document.getElementById("resetBtn").addEventListener("click", ev => {
+  const b = ev.currentTarget;
+  if (!resetArmed) {
+    b.textContent = "Click Again to Reset"; b.classList.add("on");
+    resetArmed = setTimeout(() => { b.textContent = "Reset Layout"; b.classList.remove("on"); resetArmed = null; }, 3000);
+    return;
+  }
+  clearTimeout(resetArmed); resetArmed = null; b.textContent = "Reset Layout"; b.classList.remove("on");
+  try { localStorage.removeItem(STORE + chartKey); } catch (e) {}
+  data = load(chartKey); selected = null; render(); renderPanel(); fit(); toast("Layout reset");
+});
+
+document.getElementById("copyBtn").addEventListener("click", async () => {
+  const text = JSON.stringify({chart: chartKey, ...data}, null, 1);
+  try { await navigator.clipboard.writeText(text); toast("Chart copied as JSON"); }
+  catch (e) {
+    selected = null;
+    panel.innerHTML = `<h2>Chart JSON</h2><p>Copying was blocked here. Select the text and copy it yourself.</p><textarea id="json-out" rows="16">${esc(text)}</textarea>`;
+    const t = document.getElementById("json-out"); t.focus(); t.select();
+  }
+});
+
+document.addEventListener("keydown", ev => {
+  if (ev.target.closest("input, textarea, select")) return;
+  if ((ev.key === "Delete" || ev.key === "Backspace") && selected) {
+    const btn = document.getElementById(selected.type === "node" ? "f-delete" : "e-delete");
+    if (btn) { btn.click(); ev.preventDefault(); }
+  }
+  if (ev.key === "Escape") { stopConnect(); selected = null; render(); renderPanel(); }
+});
+
+let toastT;
+function toast(msg) {
+  const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+const legend = document.getElementById("legend");
+document.getElementById("legendToggle").addEventListener("click", ev => {
+  legend.classList.toggle("collapsed");
+  ev.currentTarget.textContent = legend.classList.contains("collapsed") ? "Show" : "Hide";
+});
+
+// ---------------------------------------------------------------- tabs
+function show(key) {
+  chartKey = CHARTS[key] ? key : "calculation";
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.chart === chartKey));
+  stopConnect(); selected = null;
+  data = load(chartKey);
+  render(); renderPanel(); fit();
+  try { history.replaceState(null, "", "#" + chartKey); } catch (e) {}
+}
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => show(t.dataset.chart)));
+window.addEventListener("resize", () => fit());
+window.addEventListener("hashchange", () => { const k = location.hash.slice(1); if (k !== chartKey && CHARTS[k]) show(k); });
+const start = (location.hash || "").slice(1);
+requestAnimationFrame(() => show(start));
+})();
+</script>
+</body></html>
